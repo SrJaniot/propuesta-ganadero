@@ -241,6 +241,64 @@
   .estado { font-size: .78rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
   .estado.ya { background: var(--pasto-soft); color: var(--pasto); }
 
+  /* BASE DE DATOS */
+  .bd-bloque { display: grid; gap: 14px; margin-bottom: 40px; }
+  .bd-bloque > p { color: var(--muted); max-width: 820px; margin: 0; }
+  .bd-titulo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .bd-titulo h3 { font-size: 1.3rem; margin: 0; }
+  .estado.trabajo { background: var(--tierra-soft); color: var(--tierra); }
+  .diagrama-fig { margin: 0; display: grid; gap: 8px; min-width: 0; }
+  .diagrama-btn {
+    position: relative; display: block; width: 100%; padding: 14px; cursor: zoom-in;
+    background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .diagrama-btn img { display: block; width: 100%; height: auto; max-height: 530px; object-fit: contain; }
+  .diagrama-btn:focus-visible { outline: 3px solid var(--pasto); outline-offset: 3px; }
+  .lupa {
+    position: absolute; right: 12px; bottom: 12px; background: #1f2a1f; color: #ffffff;
+    font-size: .82rem; font-weight: 600; padding: 6px 12px; border-radius: 999px; opacity: .92;
+  }
+  .diagrama-btn:hover .lupa { opacity: 1; }
+  .diagrama-fig figcaption { font-size: .82rem; color: var(--muted); font-family: "JetBrains Mono", ui-monospace, monospace; overflow-wrap: anywhere; }
+
+  .permisos-leyenda { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 10px; }
+  .permisos-leyenda > div {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+    display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center;
+  }
+  .permisos-leyenda .letra {
+    grid-row: span 2; width: 36px; height: 36px; border-radius: 10px; background: var(--pasto-soft); color: var(--pasto);
+    display: flex; align-items: center; justify-content: center; font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 700; font-size: 1.1rem;
+  }
+  .permisos-leyenda small { color: var(--muted); font-size: .84rem; line-height: 1.35; }
+  table.permisos td.c { text-align: center; font-family: "JetBrains Mono", ui-monospace, monospace; letter-spacing: .12em; white-space: nowrap; }
+  table.permisos td.p-si { color: var(--pasto); font-weight: 700; }
+  table.permisos td.p-no { color: var(--muted); }
+
+  /* VISOR CON ZOOM */
+  .visor { position: fixed; inset: 0; z-index: 50; background: rgba(12,16,11,.97); display: flex; flex-direction: column; }
+  .visor[hidden] { display: none; }
+  .visor-barra {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; color: #ffffff; border-bottom: 1px solid rgba(255,255,255,.12);
+  }
+  .visor-titulo { font-weight: 600; font-family: "Bricolage Grotesque", sans-serif; }
+  .visor-acciones { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .visor-acciones button, .visor-acciones a {
+    background: rgba(255,255,255,.1); color: #ffffff; border: 1px solid rgba(255,255,255,.2); border-radius: 8px;
+    padding: 6px 12px; font: inherit; font-size: .9rem; cursor: pointer; text-decoration: none; min-width: 38px; text-align: center;
+  }
+  .visor-acciones button:hover, .visor-acciones a:hover { background: rgba(255,255,255,.2); }
+  .visor-zoom { color: #d8dfcf; font-size: .85rem; min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+  .visor-lienzo { flex: 1; position: relative; overflow: hidden; cursor: grab; touch-action: none; }
+  .visor-lienzo.arrastrando { cursor: grabbing; }
+  .visor-lienzo img {
+    position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none; user-select: none;
+    background: #ffffff; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  .visor-ayuda { color: #b9c2ae; font-size: .8rem; text-align: center; padding: 8px 16px 12px; }
+
   footer { border-top: 1px solid var(--border); padding: 32px 0 48px; color: var(--muted); font-size: .9rem; }
 
   @media (max-width: 860px) {
@@ -268,6 +326,7 @@
       <a href="#sin-internet">Sin internet</a>
       <a href="#sql">SQL primero</a>
       <a href="#arquitectura">Arquitectura</a>
+      <a href="#base-datos">Base de datos</a>
       <a href="#tecnologias">Tecnologías</a>
       <a href="#fases">Fases</a>
     </nav>
@@ -606,6 +665,141 @@ $$ <span class="k">LANGUAGE</span> plpgsql;</code></pre>
     </div>
   </section>
 
+  <section id="base-datos">
+    <div class="wrap">
+      <h2>Propuesta de base de datos</h2>
+      <p class="intro">Dos bases PostgreSQL: <b>seguridad</b> (usuarios, roles, menús y sesiones) y <b>lógica</b> (la finca, los animales y sus eventos). Toca un diagrama para abrirlo en grande: se puede acercar con la rueda del mouse, con dos dedos o con los botones, y arrastrar para moverlo.</p>
+
+      <div class="bd-bloque">
+        <div class="bd-titulo">
+          <h3>1. Base de seguridad</h3>
+          <span class="estado ya">✔ Aprobada</span>
+        </div>
+        <p>Es la plantilla que ya usamos en otros proyectos, sin cambios de estructura. Las tablas las crea el ORM de LoopBack, por eso van en minúscula. La clave se guarda con bcrypt y cada token queda registrado en <code>login</code> para poder cerrar la sesión.</p>
+        <figure class="diagrama-fig">
+          <button class="diagrama-btn" type="button" data-src="diagramas/seguridad.svg" data-titulo="Base de seguridad" aria-label="Abrir el diagrama de la base de seguridad">
+            <img src="diagramas/seguridad.svg" alt="Diagrama entidad-relación de la base de seguridad: usuario, rol, menu, menurol y login" loading="lazy" width="614" height="798">
+            <span class="lupa">🔍 Abrir y hacer zoom</span>
+          </button>
+          <figcaption>usuario · rol · menu · menurol · login — <a href="diagramas/seguridad.svg" target="_blank" rel="noopener">abrir la imagen en otra pestaña</a></figcaption>
+        </figure>
+
+        <h3 style="margin-top:8px">Roles y permisos por menú</h3>
+        <p>Cada fila de la tabla <code>menurol</code> dice qué puede hacer un rol en un menú con cinco permisos. En la tabla de abajo cada permiso es una letra:</p>
+        <div class="permisos-leyenda">
+          <div><span class="letra">L</span><b>Listar</b><small>Ve el menú y la lista. Si no lo tiene, el menú ni aparece.</small></div>
+          <div><span class="letra">G</span><b>Guardar</b><small>Crea registros nuevos.</small></div>
+          <div><span class="letra">E</span><b>Editar</b><small>Corrige registros existentes.</small></div>
+          <div><span class="letra">X</span><b>Eliminar</b><small>En este proyecto significa <b>anular</b>, no borrar.</small></div>
+          <div><span class="letra">B</span><b>Buscar por id</b><small>Abre el detalle de un registro.</small></div>
+        </div>
+        <p class="muted" style="font-size:.9rem">Las letras van siempre en ese orden (L G E X B). Un punto (·) en el lugar de una letra significa que no tiene ese permiso, y una raya (—) que el rol no ve ese menú. Por ejemplo, <code>LGEXB</code> es control total y <code>LG··B</code> es: ve la lista, crea y abre el detalle, pero no corrige ni anula.</p>
+        <div class="tabla-wrap">
+          <table class="permisos">
+            <thead>
+              <tr><th>Menú</th><th>1 Administrador</th><th>2 Dueño</th><th>3 Vaquero</th><th>4 Veterinario</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1 Usuarios</td><td class="c p-si">LGEXB</td><td class="c p-no">—</td><td class="c p-no">—</td><td class="c p-no">—</td></tr>
+              <tr><td>2 Mi finca (datos y personas)</td><td class="c p-si">LGEXB</td><td class="c p-si">LGE·B</td><td class="c p-no">—</td><td class="c p-no">—</td></tr>
+              <tr><td>3 Hato (animales)</td><td class="c p-si">LGEXB</td><td class="c p-si">LGEXB</td><td class="c p-si">LG··B</td><td class="c p-si">L···B</td></tr>
+              <tr><td>4 ¿Qué pasó hoy? (registrar eventos)</td><td class="c p-si">LGEXB</td><td class="c p-si">LGEXB</td><td class="c p-si">LG··B</td><td class="c p-si">LG··B</td></tr>
+              <tr><td>5 Hoy y alertas</td><td class="c p-si">L···B</td><td class="c p-si">L···B</td><td class="c p-si">L···B</td><td class="c p-si">L···B</td></tr>
+              <tr><td>6 Indicadores y Excel</td><td class="c p-si">L···B</td><td class="c p-si">L···B</td><td class="c p-no">—</td><td class="c p-si">L···B</td></tr>
+              <tr><td>7 Configuración (vacunas, ciclos ICA)</td><td class="c p-si">LGEXB</td><td class="c p-si">L···B</td><td class="c p-no">—</td><td class="c p-no">—</td></tr>
+              <tr><td>8 Sincronización</td><td class="c p-si">LG··B</td><td class="c p-si">LG··B</td><td class="c p-si">LG··B</td><td class="c p-si">LG··B</td></tr>
+              <tr><td>9 Mi perfil</td><td class="c p-si">L·E··</td><td class="c p-si">L·E··</td><td class="c p-si">L·E··</td><td class="c p-si">L·E··</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted" style="font-size:.9rem">La estructura de seguridad está aprobada; los roles y menús de esta tabla son una propuesta. El veterinario llega en la fase 5. El vaquero registra, pero no corrige ni anula lo de otros.</p>
+      </div>
+
+      <div class="bd-bloque">
+        <div class="bd-titulo">
+          <h3>2. Base de lógica: la finca y sus animales</h3>
+          <span class="estado trabajo">🛠 En construcción</span>
+        </div>
+        <p>Toda la lógica va en funciones <code>FUN_&lt;VERBO&gt;_&lt;ENTIDAD&gt;_JSON</code>. Las tablas que se llenan desde el celular llevan un <code>UUID</code> además del <code>ID</code> entero, y un <code>ESTADO</code> para anular en vez de borrar.</p>
+        <figure class="diagrama-fig">
+          <button class="diagrama-btn" type="button" data-src="diagramas/logica-finca.svg" data-titulo="Base de lógica: la finca y sus animales" aria-label="Abrir el diagrama de la finca y sus animales">
+            <img src="diagramas/logica-finca.svg" alt="Diagrama entidad-relación: fincas, personas, lotes, razas, animales, vacunas, ciclos ICA y sincronizaciones" loading="lazy" width="1971" height="1038">
+            <span class="lupa">🔍 Abrir y hacer zoom</span>
+          </button>
+          <figcaption>TAB_FINCAS · TAB_FINCAS_PERSONAS · TAB_LOTES · TAB_RAZAS · TAB_ANIMALES · TAB_VACUNAS · TAB_CICLOS_ICA · TAB_SINCRONIZACIONES — <a href="diagramas/logica-finca.svg" target="_blank" rel="noopener">abrir la imagen en otra pestaña</a></figcaption>
+        </figure>
+      </div>
+
+      <div class="bd-bloque">
+        <div class="bd-titulo">
+          <h3>3. Base de lógica: la línea de tiempo</h3>
+          <span class="estado trabajo">🛠 En construcción</span>
+        </div>
+        <p>Cada evento es una tabla propia con su validador. La línea de tiempo del animal se arma con un <code>UNION ALL</code> sobre todas ellas. El parto apunta a la cría, que es otro animal creado en la misma transacción.</p>
+        <figure class="diagrama-fig">
+          <button class="diagrama-btn" type="button" data-src="diagramas/logica-eventos.svg" data-titulo="Base de lógica: la línea de tiempo" aria-label="Abrir el diagrama de la línea de tiempo">
+            <img src="diagramas/logica-eventos.svg" alt="Diagrama entidad-relación de los eventos del animal: pesajes, vacunaciones, servicios, palpaciones, partos, ordeños y salidas" loading="lazy" width="2210" height="606">
+            <span class="lupa">🔍 Abrir y hacer zoom</span>
+          </button>
+          <figcaption>TAB_PESAJES · TAB_VACUNACIONES · TAB_SERVICIOS · TAB_PALPACIONES · TAB_PARTOS · TAB_ORDENOS · TAB_SALIDAS — <a href="diagramas/logica-eventos.svg" target="_blank" rel="noopener">abrir la imagen en otra pestaña</a></figcaption>
+        </figure>
+
+        <h3 style="margin-top:8px">Columnas que comparten todas las tablas de eventos</h3>
+        <div class="tabla-wrap">
+          <table>
+            <thead><tr><th>Columna</th><th>Para qué</th></tr></thead>
+            <tbody>
+              <tr><td><code>UUID_X</code></td><td>Lo crea el celular. Hace que reintentar la sincronización nunca duplique (es <code>UNIQUE</code>).</td></tr>
+              <tr><td><code>ID_FINCA</code></td><td>Repetido a propósito, para que «¿qué cambió en mi finca desde la última vez?» sea una consulta directa con índice en <code>(ID_FINCA, FECHA_MODIFICACION)</code>.</td></tr>
+              <tr><td><code>ID_ANIMAL</code></td><td>El animal al que le pasó el evento.</td></tr>
+              <tr><td><code>FECHA_EVENTO</code></td><td>Cuándo pasó en el potrero (la pone el celular). Es la que usan la línea de tiempo y los indicadores.</td></tr>
+              <tr><td><code>OBSERVACION_X</code></td><td>Nota libre opcional.</td></tr>
+              <tr><td><code>ESTADO_X</code></td><td><code>ACTIVO</code> o <code>ANULADO</code>. Lo anulado sale de los cálculos y se sincroniza como un cambio más.</td></tr>
+              <tr><td><code>FECHA_CREACION</code>, <code>USUARIO_CREACION</code>, <code>FECHA_MODIFICACION</code>, <code>USUARIO_MODIFICACION</code></td><td>El bloque de auditoría de siempre. <code>FECHA_CREACION</code> es cuándo llegó al servidor; toda función que modifique pone <code>FECHA_MODIFICACION = NOW()</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted" style="font-size:.9rem">El bloque de auditoría también va en fincas, lotes, animales y personas. En los diagramas se omitió para que se lean mejor.</p>
+      </div>
+
+      <div class="bd-bloque">
+        <div class="bd-titulo">
+          <h3>4. Más adelante (fase 5)</h3>
+          <span class="estado">Si hay tiempo</span>
+        </div>
+        <figure class="diagrama-fig">
+          <button class="diagrama-btn" type="button" data-src="diagramas/logica-futuro.svg" data-titulo="Más adelante: potreros y plata" aria-label="Abrir el diagrama de potreros y plata">
+            <img src="diagramas/logica-futuro.svg" alt="Diagrama entidad-relación de potreros, rotaciones y movimientos de plata" loading="lazy" width="924" height="607">
+            <span class="lupa">🔍 Abrir y hacer zoom</span>
+          </button>
+          <figcaption>TAB_POTREROS · TAB_ROTACIONES · TAB_MOVIMIENTOS — <a href="diagramas/logica-futuro.svg" target="_blank" rel="noopener">abrir la imagen en otra pestaña</a></figcaption>
+        </figure>
+      </div>
+
+      <div class="grid g3">
+        <div class="card">
+          <h3>🔗 Sin llave foránea entre bases</h3>
+          <p>Son bases distintas, así que <code>TAB_FINCAS_PERSONAS.ID_USUARIO</code> guarda el <code>id_usuario</code> de seguridad sin FK. La API lo saca del token ya validado y se lo pasa a cada función.</p>
+        </div>
+        <div class="card">
+          <h3>🧭 Permiso por menú, finca por persona</h3>
+          <p>Seguridad decide <b>qué puede hacer</b> el rol (menurol). Lógica decide <b>sobre qué finca</b>: cada función revisa que la persona trabaje en esa finca antes de leer o escribir.</p>
+        </div>
+        <div class="card">
+          <h3>🐄 Categoría calculada</h3>
+          <p>Ternera, novilla, vaca o toro no es una columna. Una función la calcula con el sexo, la edad y los partos, así nunca queda desactualizada.</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top:28px;margin-bottom:12px">Lo que estamos decidiendo en la base de lógica</h3>
+      <div class="grid g3">
+        <div class="card"><h3>Un rol por persona o uno por finca</h3><p>En seguridad el rol es único por usuario. Si alguien puede ser dueño de una finca y vaquero en otra, el rol de la finca manda en lógica (<code>ROL_FINCA</code>). Propuesta: empezar con un rol por persona y dejar <code>ROL_FINCA</code> listo.</p></div>
+        <div class="card"><h3>Catálogo de vacunas</h3><p>Global, mantenido por el administrador, o uno por finca. Propuesta: global, con los productos más comunes ya cargados.</p></div>
+        <div class="card"><h3>Ordeño por jornada o por día</h3><p>Propuesta: por jornada (mañana y tarde), y el total del día se calcula.</p></div>
+      </div>
+    </div>
+  </section>
+
   <section id="tecnologias">
     <div class="wrap">
       <h2>Tecnologías</h2>
@@ -682,6 +876,24 @@ $$ <span class="k">LANGUAGE</span> plpgsql;</code></pre>
   </section>
 </main>
 
+<div class="visor" id="visor" hidden role="dialog" aria-modal="true" aria-labelledby="visor-titulo">
+  <div class="visor-barra">
+    <span class="visor-titulo" id="visor-titulo">Diagrama</span>
+    <div class="visor-acciones">
+      <button type="button" id="visor-menos" aria-label="Alejar">−</button>
+      <span id="visor-zoom" class="visor-zoom">100 %</span>
+      <button type="button" id="visor-mas" aria-label="Acercar">+</button>
+      <button type="button" id="visor-ajustar">Ajustar</button>
+      <a id="visor-abrir" href="#" target="_blank" rel="noopener">Abrir en pestaña</a>
+      <button type="button" id="visor-cerrar" aria-label="Cerrar">✕</button>
+    </div>
+  </div>
+  <div class="visor-lienzo" id="visor-lienzo">
+    <img id="visor-img" alt="" draggable="false">
+  </div>
+  <div class="visor-ayuda">Rueda o dos dedos para acercar · arrastra para mover · doble clic para acercar · Esc para cerrar</div>
+</div>
+
 <footer>
   <div class="wrap">Propuesta de proyecto universitario · Octubre de 2026 · Los ejemplos de esta página (fincas, animales y fechas) son ilustrativos.</div>
 </footer>
@@ -700,6 +912,119 @@ $$ <span class="k">LANGUAGE</span> plpgsql;</code></pre>
       raiz.setAttribute('data-theme', nuevo);
       try { localStorage.setItem('tema', nuevo); } catch (e) {}
     });
+  })();
+
+  //VISOR DE DIAGRAMAS CON ZOOM (RUEDA, DOS DEDOS, BOTONES) Y ARRASTRE
+  (function () {
+    var visor = document.getElementById('visor');
+    var lienzo = document.getElementById('visor-lienzo');
+    var img = document.getElementById('visor-img');
+    var txtZoom = document.getElementById('visor-zoom');
+    var escala = 1, x = 0, y = 0, escalaAjuste = 1;
+    var punteros = new Map(), distInicial = 0, escalaInicial = 1, ultimo = null, origenFoco = null;
+
+    function aplicar() {
+      img.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + escala + ')';
+      txtZoom.textContent = Math.round(escala * 100) + ' %';
+    }
+    function ajustar() {
+      var w = lienzo.clientWidth, h = lienzo.clientHeight;
+      var iw = img.naturalWidth || 1000, ih = img.naturalHeight || 800;
+      escalaAjuste = Math.min((w - 32) / iw, (h - 32) / ih, 2);
+      escala = escalaAjuste;
+      x = (w - iw * escala) / 2;
+      y = (h - ih * escala) / 2;
+      aplicar();
+    }
+    function zoomEn(px, py, factor) {
+      var nueva = Math.min(Math.max(escala * factor, escalaAjuste * 0.5, 0.05), 8);
+      x = px - (px - x) * (nueva / escala);
+      y = py - (py - y) * (nueva / escala);
+      escala = nueva;
+      aplicar();
+    }
+    function centro() { return [lienzo.clientWidth / 2, lienzo.clientHeight / 2]; }
+
+    function abrir(src, titulo, boton) {
+      origenFoco = boton;
+      document.getElementById('visor-titulo').textContent = titulo;
+      document.getElementById('visor-abrir').href = src;
+      visor.hidden = false;
+      document.body.style.overflow = 'hidden';
+      img.onload = ajustar;
+      img.alt = titulo;
+      img.src = src;
+      if (img.complete && img.naturalWidth) { ajustar(); }
+      document.getElementById('visor-cerrar').focus();
+    }
+    function cerrar() {
+      visor.hidden = true;
+      document.body.style.overflow = '';
+      punteros.clear();
+      if (origenFoco) { origenFoco.focus(); }
+    }
+
+    document.querySelectorAll('.diagrama-btn').forEach(function (b) {
+      b.addEventListener('click', function () { abrir(b.getAttribute('data-src'), b.getAttribute('data-titulo'), b); });
+    });
+    document.getElementById('visor-cerrar').addEventListener('click', cerrar);
+    document.getElementById('visor-ajustar').addEventListener('click', ajustar);
+    document.getElementById('visor-mas').addEventListener('click', function () { var c = centro(); zoomEn(c[0], c[1], 1.3); });
+    document.getElementById('visor-menos').addEventListener('click', function () { var c = centro(); zoomEn(c[0], c[1], 1 / 1.3); });
+    document.addEventListener('keydown', function (e) {
+      if (visor.hidden) { return; }
+      if (e.key === 'Escape') { cerrar(); }
+      if (e.key === '+' || e.key === '=') { var c = centro(); zoomEn(c[0], c[1], 1.3); }
+      if (e.key === '-') { var d = centro(); zoomEn(d[0], d[1], 1 / 1.3); }
+      if (e.key === '0') { ajustar(); }
+    });
+    window.addEventListener('resize', function () { if (!visor.hidden) { ajustar(); } });
+
+    lienzo.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var r = lienzo.getBoundingClientRect();
+      zoomEn(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+    }, { passive: false });
+    lienzo.addEventListener('dblclick', function (e) {
+      var r = lienzo.getBoundingClientRect();
+      zoomEn(e.clientX - r.left, e.clientY - r.top, 1.8);
+    });
+
+    //ARRASTRE CON UN DEDO O EL MOUSE, ZOOM CON DOS DEDOS
+    lienzo.addEventListener('pointerdown', function (e) {
+      lienzo.setPointerCapture(e.pointerId);
+      punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (punteros.size === 2) {
+        var p = Array.from(punteros.values());
+        distInicial = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+        escalaInicial = escala;
+      }
+      ultimo = { x: e.clientX, y: e.clientY };
+      lienzo.classList.add('arrastrando');
+    });
+    lienzo.addEventListener('pointermove', function (e) {
+      if (!punteros.has(e.pointerId)) { return; }
+      punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (punteros.size === 2) {
+        var p = Array.from(punteros.values());
+        var dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+        var r = lienzo.getBoundingClientRect();
+        var cx = (p[0].x + p[1].x) / 2 - r.left, cy = (p[0].y + p[1].y) / 2 - r.top;
+        if (distInicial > 0) { zoomEn(cx, cy, (escalaInicial * dist / distInicial) / escala); }
+      } else if (punteros.size === 1 && ultimo) {
+        x += e.clientX - ultimo.x;
+        y += e.clientY - ultimo.y;
+        ultimo = { x: e.clientX, y: e.clientY };
+        aplicar();
+      }
+    });
+    function soltar(e) {
+      punteros.delete(e.pointerId);
+      if (punteros.size === 1) { var q = Array.from(punteros.values())[0]; ultimo = { x: q.x, y: q.y }; }
+      if (punteros.size === 0) { ultimo = null; lienzo.classList.remove('arrastrando'); }
+    }
+    lienzo.addEventListener('pointerup', soltar);
+    lienzo.addEventListener('pointercancel', soltar);
   })();
 </script>
 </body>
