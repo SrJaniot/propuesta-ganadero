@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuesta: gestión ganadera sin señal</title>
+<meta name="description" content="Propuesta de proyecto universitario: una aplicación para el pequeño ganadero de doble propósito que funciona sin internet, con la línea de tiempo de cada animal y la lógica de negocio transaccional en PostgreSQL.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f3ea;
+    --surface: #fffdf8;
+    --surface-2: #efe8d9;
+    --text: #1f2a1f;
+    --muted: #5b6656;
+    --border: #e0d7c4;
+    --pasto: #2f6b3a;
+    --pasto-soft: #dfeedd;
+    --tierra: #9a5b2e;
+    --tierra-soft: #f4e3d3;
+    --cielo: #2c6a8f;
+    --cielo-soft: #dcebf3;
+    --rojo: #b3402f;
+    --rojo-soft: #f8e0db;
+    --code-bg: #1d241d;
+    --code-text: #e6eadf;
+    --shadow: 0 1px 2px rgba(40,35,20,.06), 0 8px 26px rgba(40,35,20,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11160f;
+      --surface: #182016;
+      --surface-2: #1f2a1c;
+      --text: #e9ecdf;
+      --muted: #a2ad98;
+      --border: #2c3a28;
+      --pasto: #7fcb87;
+      --pasto-soft: #1f3a22;
+      --tierra: #e3a46f;
+      --tierra-soft: #3b2818;
+      --cielo: #7cc0e6;
+      --cielo-soft: #17303f;
+      --rojo: #f08f7f;
+      --rojo-soft: #3d1f1a;
+      --code-bg: #0b0f0a;
+      --code-text: #e6eadf;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11160f;
+    --surface: #182016;
+    --surface-2: #1f2a1c;
+    --text: #e9ecdf;
+    --muted: #a2ad98;
+    --border: #2c3a28;
+    --pasto: #7fcb87;
+    --pasto-soft: #1f3a22;
+    --tierra: #e3a46f;
+    --tierra-soft: #3b2818;
+    --cielo: #7cc0e6;
+    --cielo-soft: #17303f;
+    --rojo: #f08f7f;
+    --rojo-soft: #3d1f1a;
+    --code-bg: #0b0f0a;
+    --code-text: #e6eadf;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  h1, h2, h3 { font-family: "Bricolage Grotesque", Inter, sans-serif; line-height: 1.15; margin: 0; }
+  h2 { font-size: clamp(1.6rem, 3.4vw, 2.2rem); margin-bottom: .5rem; font-weight: 800; }
+  h3 { font-size: 1.12rem; margin-bottom: .4rem; font-weight: 600; }
+  p { margin: 0 0 .8rem; }
+  a { color: var(--pasto); }
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .88em; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+
+  /* BARRA SUPERIOR */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; height: 58px; }
+  .marca { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  .marca small { font-family: Inter, sans-serif; font-weight: 500; color: var(--muted); font-size: .78rem; }
+  .nav { display: flex; gap: 18px; overflow-x: auto; flex: 1; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { color: var(--muted); text-decoration: none; font-size: .9rem; white-space: nowrap; }
+  .nav a:hover { color: var(--text); }
+  .tema-btn {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 8px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: .85rem;
+  }
+
+  /* PORTADA */
+  .hero { padding: 64px 0 48px; }
+  .hero .wrap { display: grid; grid-template-columns: 1.25fr .75fr; gap: 40px; align-items: center; }
+  .etiqueta {
+    display: inline-block; background: var(--pasto-soft); color: var(--pasto);
+    font-weight: 600; font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+    padding: 4px 11px; border-radius: 999px; margin-bottom: 18px;
+  }
+  .hero h1 { font-size: clamp(2.1rem, 5vw, 3.4rem); font-weight: 800; }
+  .hero h1 em { font-style: normal; color: var(--pasto); }
+  .hero .lead { font-size: 1.15rem; color: var(--muted); max-width: 640px; margin-top: 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .chip { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: .85rem; color: var(--muted); }
+  .chip b { color: var(--text); font-weight: 600; }
+
+  section { padding: 56px 0; border-top: 1px solid var(--border); }
+  .intro { color: var(--muted); max-width: 760px; margin-bottom: 28px; }
+  .grid { display: grid; gap: 16px; }
+  .grid > *, .hero .wrap > *, .arq > * { min-width: 0; }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
+  .g-mini { grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .card ul { margin: .4rem 0 0; padding-left: 1.1rem; }
+  .card li { margin-bottom: .3rem; }
+  .card p:last-child { margin-bottom: 0; }
+  .icono { font-size: 1.7rem; line-height: 1; margin-bottom: 10px; display: block; }
+  .muted { color: var(--muted); }
+  .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%; background: var(--pasto); color: var(--surface);
+    font-weight: 700; font-size: .9rem; margin-bottom: 10px;
+  }
+  .pilar { border-top: 4px solid var(--pasto); }
+  .pilar.tierra { border-top-color: var(--tierra); }
+  .pilar.cielo { border-top-color: var(--cielo); }
+  .nota {
+    border-left: 4px solid var(--tierra); background: var(--tierra-soft);
+    padding: 14px 18px; border-radius: 0 12px 12px 0; margin-top: 22px; font-size: .95rem;
+  }
+
+  /* CELULAR DE MUESTRA */
+  .telefono {
+    width: 100%; max-width: 290px; margin: 0 auto;
+    background: var(--text); border-radius: 34px; padding: 10px;
+    box-shadow: var(--shadow);
+  }
+  .pantalla { background: #fbfaf5; color: #1f2a1f; border-radius: 26px; padding: 16px 14px 18px; overflow: hidden; }
+  .estado-sync {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: .74rem; color: #46523f; margin-bottom: 12px;
+  }
+  .estado-sync span:last-child { background: #fde9c9; color: #7a4512; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  .pantalla h4 { margin: 0 0 12px; font-family: "Bricolage Grotesque", sans-serif; font-size: 1.25rem; }
+  .botones { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .boton-campo {
+    background: #ffffff; border: 2px solid #d9d2c0; border-radius: 16px;
+    padding: 12px 6px; text-align: center; font-weight: 700; font-size: .86rem; color: #1f2a1f;
+  }
+  .boton-campo span { display: block; font-size: 1.6rem; margin-bottom: 2px; }
+  .boton-campo.principal { background: #2f6b3a; border-color: #2f6b3a; color: #fff; }
+  .hoy-mini { margin-top: 12px; background: #fff4e0; border-radius: 12px; padding: 9px 11px; font-size: .78rem; color: #6b3d12; }
+
+  /* LINEA DE TIEMPO */
+  .linea { position: relative; padding-left: 30px; margin: 0; list-style: none; }
+  .linea::before { content: ""; position: absolute; left: 11px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
+  .linea li { position: relative; margin-bottom: 14px; }
+  .linea li::before {
+    content: attr(data-i); position: absolute; left: -30px; top: 0;
+    width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2);
+    border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: .72rem;
+  }
+  .linea .f { font-size: .78rem; color: var(--muted); display: block; }
+  .linea .anulado { text-decoration: line-through; color: var(--muted); }
+
+  /* PASOS DE SINCRONIZACION */
+  .flujo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; position: relative; }
+  .paso { position: relative; }
+  .paso h3 { font-size: 1.02rem; }
+  .paso p { font-size: .93rem; }
+  .flecha { color: var(--muted); font-size: .8rem; margin-top: 6px; }
+
+  /* TABLAS */
+  .tabla-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: .94rem; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-weight: 600; font-size: .85rem; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+
+  /* CODIGO */
+  pre {
+    background: var(--code-bg); color: var(--code-text); border-radius: 14px; padding: 18px;
+    overflow-x: auto; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .8rem; line-height: 1.55; margin: 0;
+  }
+  pre .c { color: #9fb58f; }
+  pre .k { color: #f0b46b; }
+  pre .s { color: #8fd0a6; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+  /* ARQUITECTURA */
+  .arq { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 12px; align-items: stretch; }
+  .capa { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); }
+  .capa h3 { font-size: 1rem; }
+  .capa .tag { display: inline-block; font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-bottom: 8px; }
+  .capa ul { margin: .3rem 0 0; padding-left: 1.05rem; font-size: .9rem; }
+  .capa.cel .tag { background: var(--cielo-soft); color: var(--cielo); }
+  .capa.api .tag { background: var(--tierra-soft); color: var(--tierra); }
+  .capa.db { border: 2px solid var(--pasto); }
+  .capa.db .tag { background: var(--pasto-soft); color: var(--pasto); }
+  .conector { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1.4rem; }
+
+  /* TECNOLOGIAS */
+  .tec { display: flex; gap: 14px; align-items: flex-start; }
+  .tec .logo {
+    flex: 0 0 44px; height: 44px; border-radius: 12px; background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .8rem;
+    font-family: "Bricolage Grotesque", sans-serif;
+  }
+  .tec h3 { margin-bottom: .2rem; font-size: 1rem; }
+  .tec p { font-size: .9rem; color: var(--muted); margin: 0; }
+  .grupo-tec { margin-top: 26px; margin-bottom: 12px; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+
+  .no-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; }
+  .no { background: var(--rojo-soft); border-radius: 14px; padding: 16px 18px; }
+  .no h3 { color: var(--rojo); font-size: 1rem; }
+  .no p { font-size: .9rem; margin: 0; }
+
+  .estado { font-size: .78rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+  .estado.ya { background: var(--pasto-soft); color: var(--pasto); }
+
+  footer { border-top: 1px solid var(--border); padding: 32px 0 48px; color: var(--muted); font-size: .9rem; }
+
+  @media (max-width: 860px) {
+    .hero .wrap { grid-template-columns: 1fr; }
+    .flujo { grid-template-columns: 1fr 1fr; }
+    .arq { grid-template-columns: 1fr; }
+    .conector { transform: rotate(90deg); }
+  }
+  @media (max-width: 520px) {
+    .flujo { grid-template-columns: 1fr; }
+    .hero { padding-top: 40px; }
+    .marca small { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="marca">🐄 Proyecto ganadero <small>· nombre por definir</small></div>
+    <nav class="nav" aria-label="Secciones">
+      <a href="#problema">Problema</a>
+      <a href="#decisiones">Decisiones</a>
+      <a href="#funciones">Qué hace</a>
+      <a href="#sin-internet">Sin internet</a>
+      <a href="#sql">SQL primero</a>
+      <a href="#arquitectura">Arquitectura</a>
+      <a href="#tecnologias">Tecnologías</a>
+      <a href="#fases">Fases</a>
+    </nav>
+    <button class="tema-btn" id="tema" type="button" aria-label="Cambiar tema">◐ Tema</button>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <span class="etiqueta">Propuesta de proyecto universitario · 2026</span>
+        <h1>La libreta del ganadero, en el celular y <em>sin necesidad de señal</em></h1>
+        <p class="lead">Una aplicación para el pequeño ganadero de doble propósito: registra en el potrero lo que le pasa a cada animal (ordeño, pesaje, vacunas, montas, partos) y la sincroniza cuando vuelve la conexión. Con esos datos le avisa qué toca hacer y le muestra cómo va su finca.</p>
+        <div class="chips">
+          <span class="chip"><b>Doble propósito</b> · leche y carne</span>
+          <span class="chip"><b>Funciona sin internet</b></span>
+          <span class="chip"><b>Lógica en PostgreSQL</b> · todo transaccional</span>
+        </div>
+      </div>
+      <div class="telefono" aria-label="Ejemplo de la pantalla de inicio">
+        <div class="pantalla">
+          <div class="estado-sync"><span>Finca La Esperanza</span><span>📱 5 por subir</span></div>
+          <h4>¿Qué pasó hoy?</h4>
+          <div class="botones">
+            <div class="boton-campo principal"><span>🐄</span>Ordeñé</div>
+            <div class="boton-campo"><span>⚖️</span>Pesé</div>
+            <div class="boton-campo"><span>💉</span>Vacuné</div>
+            <div class="boton-campo"><span>❤️</span>Monta</div>
+            <div class="boton-campo"><span>🍼</span>Parió</div>
+            <div class="boton-campo"><span>📤</span>Salió</div>
+          </div>
+          <div class="hoy-mini">⚠️ La vaca <b>Canela (23)</b> pare en unos 6 días</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section id="problema">
+    <div class="wrap">
+      <h2>El problema</h2>
+      <p class="intro">En las zonas rurales de Santander la ganadería es una de las actividades principales, pero muchos pequeños y medianos productores todavía llevan el control a mano o de memoria.</p>
+      <div class="grid g3">
+        <div class="card">
+          <span class="icono">📒</span>
+          <h3>La libreta se pierde</h3>
+          <p>Los registros en papel se mojan, se pierden o quedan incompletos. No hay forma de ver la historia de una vaca ni de comparar un año con otro.</p>
+        </div>
+        <div class="card">
+          <span class="icono">📅</span>
+          <h3>Las fechas se olvidan</h3>
+          <p>Cuándo pare la vaca, cuándo toca vacunar, cuántos días lleva vacía o hasta cuándo no se puede vender la leche de una vaca tratada. Olvidarlo cuesta plata.</p>
+        </div>
+        <div class="card">
+          <span class="icono">📵</span>
+          <h3>En el potrero no hay señal</h3>
+          <p>Las aplicaciones que existen suelen pedir internet, son caras o están pensadas para fincas grandes y para alguien sentado frente a un computador.</p>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="card">
+          <h3>¿Para quién es?</h3>
+          <p>El <b>pequeño ganadero de doble propósito</b>: una finca con entre 10 y 80 animales, que ordeña, vende terneros y hoy anota en una libreta o no anota. También el vaquero que hace el trabajo diario.</p>
+        </div>
+        <div class="card">
+          <h3>¿Qué gana?</h3>
+          <ul>
+            <li>La historia completa de cada animal en el bolsillo.</li>
+            <li>Avisos de partos, vacunas y retiros de leche.</li>
+            <li>Cifras de su finca: litros por vaca, ganancia de peso, intervalo entre partos.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="nota">Antes de diseñar las pantallas vamos a hablar con ganaderos reales para validar qué anotan hoy y qué se les olvida. Las cifras del sector que usemos saldrán de fuentes oficiales (censo pecuario del ICA y Fedegán).</p>
+    </div>
+  </section>
+
+  <section id="decisiones">
+    <div class="wrap">
+      <h2>Tres decisiones que definen el proyecto</h2>
+      <p class="intro">En lugar de hacer de todo un poco, el proyecto se apoya en tres ideas que lo diferencian.</p>
+      <div class="grid g3">
+        <div class="card pilar">
+          <span class="num">1</span>
+          <h3>Funciona sin internet</h3>
+          <p>Todo se registra en el celular aunque no haya señal. Cuando vuelve la conexión, los datos suben solos al servidor y bajan los que registraron los demás. Siempre se ve el estado: «☁ Todo guardado» o «📱 5 por subir».</p>
+        </div>
+        <div class="card pilar tierra">
+          <span class="num">2</span>
+          <h3>El animal y su línea de tiempo</h3>
+          <p>Cada cosa que le pasa a un animal es un <b>evento con fecha</b>: nació, se pesó, se vacunó, se preñó, parió, dio leche, se vendió. La historia, las alertas y los indicadores salen de esos eventos.</p>
+        </div>
+        <div class="card pilar cielo">
+          <span class="num">3</span>
+          <h3>Hecha para el campesino</h3>
+          <p>Botones grandes, pocos campos y tres toques por registro. Alto contraste para usarla bajo el sol, íconos en cada acción y las palabras del campo: ternera, novilla, vaca horra, palpar, preñada.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="funciones">
+    <div class="wrap">
+      <h2>Qué hace</h2>
+      <p class="intro">El núcleo cubre el día a día de una finca de doble propósito. La categoría de cada animal (ternera, novilla, vaca, toro...) no se escribe: se calcula sola por la edad, el sexo y los partos.</p>
+      <div class="grid g2" style="align-items:start">
+        <div class="grid g-mini">
+          <div class="card">
+            <span class="icono">🐮</span>
+            <h3>Hato</h3>
+            <p>Cada animal con su chapeta, hierro, raza, foto, madre y padre. Se busca por el número de la chapeta con un teclado grande.</p>
+          </div>
+          <div class="card">
+            <span class="icono">💉</span>
+            <h3>Sanidad</h3>
+            <p>Vacunas y tratamientos, la próxima dosis y los días de retiro de leche: «no vender leche de la vaca 23 hasta el viernes».</p>
+          </div>
+          <div class="card">
+            <span class="icono">❤️</span>
+            <h3>Reproducción</h3>
+            <p>Monta o inseminación, palpación y parto esperado (unos 283 días después). Al registrar el parto, la cría se crea sola con su madre.</p>
+          </div>
+          <div class="card">
+            <span class="icono">⚖️</span>
+            <h3>Pesajes</h3>
+            <p>Ganancia diaria de peso con su gráfica. Sin báscula, se mide el perímetro con la cinta bovinométrica y la aplicación estima los kilos.</p>
+          </div>
+          <div class="card">
+            <span class="icono">🥛</span>
+            <h3>Leche</h3>
+            <p>Ordeño en lote: se pasan las vacas una por una y solo se escriben los litros. Total del día y litros por vaca.</p>
+          </div>
+          <div class="card">
+            <span class="icono">🔔</span>
+            <h3>Pantalla «Hoy»</h3>
+            <p>Partos próximos, vacas vacías hace muchos días, vacunas por aplicar y retiros de leche vigentes, incluidos los ciclos de vacunación del ICA.</p>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Ejemplo: la línea de tiempo de una vaca</h3>
+          <p class="muted" style="font-size:.9rem">Canela · chapeta 23 · vaca de 5 años · cruce Gyr × Holstein</p>
+          <ul class="linea">
+            <li data-i="❤️"><b>Palpación: preñada de 8 meses</b><span class="f">14/10/2026 · registrado sin señal por el vaquero</span></li>
+            <li data-i="🥛"><b>Ordeño: 9,5 litros</b><span class="f">13/10/2026</span></li>
+            <li data-i="💉"><b>Vacuna contra aftosa (ciclo ICA)</b><span class="f">02/06/2026</span></li>
+            <li data-i="⚖️"><b>Pesaje: 452 kg</b> <span class="muted">(estimado con cinta)</span><span class="f">20/05/2026</span></li>
+            <li data-i="⚖️"><span class="anulado">Pesaje: 54 kg</span> <span class="muted">· anulado: error al escribir</span><span class="f">20/05/2026</span></li>
+            <li data-i="❤️"><b>Inseminación con pajilla Gyr</b><span class="f">08/01/2026</span></li>
+            <li data-i="🍼"><b>Parto: ternera Luna (chapeta 41)</b><span class="f">27/09/2025</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sin-internet">
+    <div class="wrap">
+      <h2>Cómo funciona sin internet</h2>
+      <p class="intro">Cada registro recibe en el celular un identificador único (UUID). Gracias a él se puede reintentar sin duplicar nada y el servidor sabe qué ya tiene. La regla es simple: <b>primero se sube lo del celular y después se baja lo de los demás.</b></p>
+      <div class="flujo">
+        <div class="card paso">
+          <span class="num">1</span>
+          <h3>Registrar en el potrero</h3>
+          <p>El dato se guarda en el celular (IndexedDB, con Dexie) y entra a una <b>bandeja de salida</b> en el orden en que se registró.</p>
+        </div>
+        <div class="card paso">
+          <span class="num">2</span>
+          <h3>Volver la señal</h3>
+          <p>Al detectar conexión, al abrir la aplicación o con el botón «Sincronizar», la bandeja empieza a subir en lotes.</p>
+        </div>
+        <div class="card paso">
+          <span class="num">3</span>
+          <h3>Subir</h3>
+          <p>Una función de PostgreSQL revisa cada registro con las mismas reglas que en línea: lo guarda, lo omite si ya existía o lo rechaza con un mensaje claro.</p>
+        </div>
+        <div class="card paso">
+          <span class="num">4</span>
+          <h3>Bajar</h3>
+          <p>El celular pide todo lo que cambió desde su última vez (según la hora del servidor) y actualiza su copia de la finca.</p>
+        </div>
+      </div>
+
+      <div class="tabla-wrap" style="margin-top:22px">
+        <table>
+          <thead><tr><th>Si pasa esto…</th><th>…el sistema hace esto</th></tr></thead>
+          <tbody>
+            <tr><td>Se cae la señal a mitad de la subida</td><td>No se borra nada de la bandeja. Se reintenta después y, como cada registro tiene su UUID, nada se duplica.</td></tr>
+            <tr><td>Dos personas pesan la misma vaca</td><td>Quedan los dos pesajes. Los eventos solo se agregan, así que no chocan.</td></tr>
+            <tr><td>Alguien registra algo sin sentido (un pesaje de una vaca ya vendida)</td><td>PostgreSQL lo rechaza y el celular lo muestra en rojo para corregirlo o anularlo. El resto del lote sí entra.</td></tr>
+            <tr><td>Hay que borrar un error</td><td>El registro se <b>anula</b> en vez de borrarse: la anulación llega a todos los celulares y queda el rastro de quién lo hizo.</td></tr>
+            <tr><td>Se vence la sesión estando en el potrero</td><td>La aplicación sigue funcionando con los datos del celular. Al sincronizar pide la clave otra vez y sube lo pendiente.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="sql">
+    <div class="wrap">
+      <h2>Cómo trabajamos la lógica: SQL primero</h2>
+      <p class="intro">Toda la lógica de negocio vive en <b>funciones de PostgreSQL</b> (plpgsql). La API solo recibe la petición, revisa los permisos y llama a la función. Cada operación es <b>transaccional</b>: o se guarda completa, o no se guarda nada.</p>
+      <div class="grid g2" style="align-items:start">
+        <div class="grid">
+          <div class="card">
+            <h3>🗄️ Una sola fuente de verdad</h3>
+            <p>Las reglas («no se puede pesar una vaca vendida», «una vaca no puede parir dos veces en una semana») están en la base de datos. Da igual si el dato llega en línea o desde la bandeja de un celular sin señal: se valida igual.</p>
+          </div>
+          <div class="card">
+            <h3>🔁 Rollback real</h3>
+            <p>Cuando una operación toca varias tablas, va dentro de un bloque <code>BEGIN … EXCEPTION</code>. Si un paso falla, se revierte todo. Nunca queda un parto sin su cría ni una cría sin su parto.</p>
+          </div>
+          <div class="card">
+            <h3>📦 Respuesta uniforme</h3>
+            <p>Toda función devuelve un JSON con <code>CODIGO</code>, <code>MENSAJE</code> y <code>DATOS</code>: 200 si salió bien, 400 si no cumple una regla, 404 si no hay datos y 500 si falló el guardado. La aplicación siempre sabe qué mostrar.</p>
+          </div>
+          <div class="card">
+            <h3>🧩 Cuatro piezas por operación</h3>
+            <ol style="margin:.3rem 0 0;padding-left:1.2rem">
+              <li>La función <code>FUN_&lt;VERBO&gt;_&lt;ENTIDAD&gt;_JSON</code> con su validador.</li>
+              <li>La consulta que la llama: <code>SELECT FUN_X_JSON($1..$n) as resultado</code>.</li>
+              <li>El modelo de entrada en la API, con los mismos campos.</li>
+              <li>El método del controlador, que solo pasa los datos y devuelve la respuesta.</li>
+            </ol>
+          </div>
+        </div>
+        <div>
+          <pre><code><span class="c">-- REGISTRAR UN PARTO Y CREAR LA CRIA (TODO O NADA)</span>
+<span class="k">CREATE OR REPLACE FUNCTION</span> FUN_REGISTRAR_PARTO_JSON(
+    jUUID_PARTO     TAB_PARTOS.UUID_PARTO%TYPE,
+    jID_MADRE       TAB_PARTOS.ID_ANIMAL%TYPE,
+    jFECHA_EVENTO   TAB_PARTOS.FECHA_EVENTO%TYPE,
+    jUUID_CRIA      TAB_ANIMALES.UUID_ANIMAL%TYPE,
+    jSEXO_CRIA      TAB_ANIMALES.SEXO_ANIMAL%TYPE,
+    jUSUARIO        TAB_PARTOS.USUARIO_CREACION%TYPE
+) <span class="k">RETURNS JSON AS</span>
+$$
+<span class="k">DECLARE</span>
+    RETORNO     JSON;
+    jVALIDACION JSON;
+    jID_CRIA    INTEGER;
+    jID_PARTO   INTEGER;
+<span class="k">BEGIN</span>
+    <span class="c">--VALIDAR LAS REGLAS DEL NEGOCIO</span>
+    jVALIDACION := FUN_VALIDAR_PARTO(jID_MADRE, jFECHA_EVENTO);
+    <span class="k">IF</span> (jVALIDACION -&gt;&gt; <span class="s">'CODIGO'</span>)::INTEGER != 200 <span class="k">THEN</span>
+        <span class="k">RETURN</span> jVALIDACION;
+    <span class="k">END IF</span>;
+
+    <span class="c">--BLOQUE TRANSACCIONAL: SI ALGO FALLA SE REVIERTE TODO</span>
+    <span class="k">BEGIN</span>
+        <span class="c">--CREAR LA CRIA CON SU MADRE</span>
+        jID_CRIA := funcion_Retorna_ultmoid(<span class="s">'TAB_ANIMALES'</span>, <span class="s">'ID_ANIMAL'</span>);
+        <span class="k">INSERT INTO</span> TAB_ANIMALES (ID_ANIMAL, UUID_ANIMAL, SEXO_ANIMAL,
+            FECHA_NACIMIENTO, ID_MADRE, USUARIO_CREACION)
+        <span class="k">VALUES</span> (jID_CRIA, jUUID_CRIA, jSEXO_CRIA,
+            jFECHA_EVENTO, jID_MADRE, jUSUARIO);
+        <span class="k">IF NOT FOUND THEN</span>
+            <span class="k">RAISE EXCEPTION</span> <span class="s">'No se pudo crear la cría'</span>;
+        <span class="k">END IF</span>;
+
+        <span class="c">--REGISTRAR EL PARTO EN LA LINEA DE TIEMPO DE LA MADRE</span>
+        jID_PARTO := funcion_Retorna_ultmoid(<span class="s">'TAB_PARTOS'</span>, <span class="s">'ID_PARTO'</span>);
+        <span class="k">INSERT INTO</span> TAB_PARTOS (ID_PARTO, UUID_PARTO, ID_ANIMAL,
+            ID_CRIA, FECHA_EVENTO, USUARIO_CREACION)
+        <span class="k">VALUES</span> (jID_PARTO, jUUID_PARTO, jID_MADRE,
+            jID_CRIA, jFECHA_EVENTO, jUSUARIO);
+        <span class="k">IF NOT FOUND THEN</span>
+            <span class="k">RAISE EXCEPTION</span> <span class="s">'No se pudo registrar el parto'</span>;
+        <span class="k">END IF</span>;
+
+        RETORNO := json_build_object(<span class="s">'CODIGO'</span>, 200,
+            <span class="s">'MENSAJE'</span>, <span class="s">'Parto registrado'</span>,
+            <span class="s">'DATOS'</span>, json_build_object(<span class="s">'ID_CRIA'</span>, jID_CRIA));
+    <span class="k">EXCEPTION WHEN OTHERS THEN</span>
+        <span class="c">--SE REVIERTE LA CRIA Y EL PARTO</span>
+        RETORNO := json_build_object(<span class="s">'CODIGO'</span>, 500, <span class="s">'MENSAJE'</span>, SQLERRM);
+    <span class="k">END</span>;
+    <span class="k">RETURN</span> RETORNO;
+<span class="k">END</span>;
+$$ <span class="k">LANGUAGE</span> plpgsql;</code></pre>
+          <p class="muted" style="font-size:.85rem;margin-top:10px">Ejemplo ilustrativo del estilo que usaremos. Las firmas definitivas se escriben en el contrato de cada fase.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="arquitectura">
+    <div class="wrap">
+      <h2>Arquitectura</h2>
+      <p class="intro">Una aplicación web instalable en el celular (PWA) que habla con dos microservicios. Cada microservicio tiene su propia base de datos PostgreSQL: una para el negocio y otra para usuarios y permisos.</p>
+      <div class="arq">
+        <div class="capa cel">
+          <span class="tag">En el celular</span>
+          <h3>Aplicación instalable</h3>
+          <ul>
+            <li>Angular 21 + Tailwind 4</li>
+            <li>Service worker: abre sin señal</li>
+            <li>Dexie (IndexedDB): copia de la finca y bandeja de salida</li>
+          </ul>
+        </div>
+        <div class="conector" aria-hidden="true">⇄</div>
+        <div class="capa api">
+          <span class="tag">API delgada</span>
+          <h3>Microservicios LoopBack 4</h3>
+          <ul>
+            <li><b>Lógica:</b> recibe, revisa permisos y llama a la función SQL</li>
+            <li><b>Seguridad:</b> usuarios, roles, menús y sesiones (JWT)</li>
+            <li>Cada endpoint protegido por rol y acción</li>
+          </ul>
+        </div>
+        <div class="conector" aria-hidden="true">⇄</div>
+        <div class="capa db">
+          <span class="tag">Aquí vive la lógica</span>
+          <h3>PostgreSQL</h3>
+          <ul>
+            <li>Funciones plpgsql con validadores</li>
+            <li>Transacciones con rollback real</li>
+            <li>Sincronización, indicadores y alertas</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g3" style="margin-top:22px">
+        <div class="card">
+          <h3>👥 Roles</h3>
+          <p><b>Dueño:</b> ve y administra su finca. <b>Vaquero:</b> registra el trabajo diario. <b>Veterinario</b> (más adelante): consulta y registra la sanidad.</p>
+        </div>
+        <div class="card">
+          <h3>🔒 Seguridad</h3>
+          <p>Claves cifradas con bcrypt, sesiones con JWT y permisos revisados en el servidor en cada petición. Ocultar un botón no es seguridad: la que cuenta es la del backend.</p>
+        </div>
+        <div class="card">
+          <h3>🏡 Varias fincas</h3>
+          <p>Cada persona trabaja en una o varias fincas con un rol en cada una. Todas las consultas se filtran por finca.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tecnologias">
+    <div class="wrap">
+      <h2>Tecnologías</h2>
+      <p class="intro">Herramientas maduras, de código abierto y sin costos de licencia.</p>
+
+      <div class="grupo-tec">Frontend (en el celular)</div>
+      <div class="grid g3">
+        <div class="card tec"><div class="logo">NG</div><div><h3>Angular 21</h3><p>Módulos por funcionalidad que cargan bajo demanda, formularios tipados y TypeScript.</p></div></div>
+        <div class="card tec"><div class="logo">TW</div><div><h3>Tailwind CSS 4</h3><p>Estilos para una interfaz grande, clara y de alto contraste.</p></div></div>
+        <div class="card tec"><div class="logo">DX</div><div><h3>Dexie</h3><p>Librería pequeña sobre IndexedDB: guarda la finca en el celular y la bandeja de salida, con transacciones.</p></div></div>
+        <div class="card tec"><div class="logo">SW</div><div><h3>PWA y service worker</h3><p>Se instala como una aplicación y abre aunque no haya internet.</p></div></div>
+        <div class="card tec"><div class="logo">SVG</div><div><h3>Gráficas en SVG</h3><p>Ganancia de peso, litros por vaca e indicadores, sin librerías pesadas.</p></div></div>
+        <div class="card tec"><div class="logo">OSM</div><div><h3>Leaflet + OpenStreetMap</h3><p>Mapa de potreros en la segunda fase, gratis y sin claves.</p></div></div>
+      </div>
+
+      <div class="grupo-tec">Backend</div>
+      <div class="grid g3">
+        <div class="card tec"><div class="logo">LB4</div><div><h3>LoopBack 4</h3><p>Framework de Node.js y TypeScript para los dos microservicios: lógica y seguridad.</p></div></div>
+        <div class="card tec"><div class="logo">JWT</div><div><h3>JWT + bcrypt</h3><p>Sesiones con token y claves cifradas. Permisos por rol y acción en cada endpoint.</p></div></div>
+        <div class="card tec"><div class="logo">XLS</div><div><h3>Exportar a Excel</h3><p>Reportes del hato, la sanidad y la producción para llevar o entregar.</p></div></div>
+      </div>
+
+      <div class="grupo-tec">Base de datos</div>
+      <div class="grid g3">
+        <div class="card tec"><div class="logo">PG</div><div><h3>PostgreSQL</h3><p>Dos bases: negocio y seguridad. Toda la lógica en funciones plpgsql que devuelven JSON.</p></div></div>
+        <div class="card tec"><div class="logo">TX</div><div><h3>Transacciones</h3><p>Bloques con rollback real e identificadores protegidos con candados para inserciones simultáneas.</p></div></div>
+        <div class="card tec"><div class="logo">UUID</div><div><h3>UUID por registro</h3><p>La clave de la sincronización: el celular crea el identificador y el servidor nunca duplica.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="fases">
+    <div class="wrap">
+      <h2>Fases</h2>
+      <p class="intro">Empezamos por lo más riesgoso: comprobar que la sincronización funciona de punta a punta antes de construir encima.</p>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th style="width:70px">Fase</th><th>Qué incluye</th><th style="width:120px">Estado</th></tr></thead>
+          <tbody>
+            <tr><td><b>0</b></td><td>Seguridad (usuarios, roles, sesión), fincas, aplicación instalable y <b>motor de sincronización probado con un solo evento: el pesaje</b>.</td><td><span class="estado">Siguiente</span></td></tr>
+            <tr><td><b>1</b></td><td>Hato: animales con chapeta, hierro, foto, madre y padre; categoría calculada.</td><td><span class="estado">Por hacer</span></td></tr>
+            <tr><td><b>2</b></td><td>Línea de tiempo y todos los eventos: pesaje con cinta, sanidad, monta, palpación, parto con cría automática, ordeño en lote y salida.</td><td><span class="estado">Por hacer</span></td></tr>
+            <tr><td><b>3</b></td><td>Pantalla «Hoy» y alertas: partos próximos, vacas vacías, vacunas y retiros de leche.</td><td><span class="estado">Por hacer</span></td></tr>
+            <tr><td><b>4</b></td><td>Indicadores: natalidad, mortalidad, intervalo entre partos, litros por vaca al día y ganancia diaria de peso. Excel.</td><td><span class="estado">Por hacer</span></td></tr>
+            <tr><td><b>5</b></td><td>Segunda etapa: potreros en el mapa, ventas y gastos, rol de veterinario, recordatorios por WhatsApp y QR en la chapeta.</td><td><span class="estado">Si hay tiempo</span></td></tr>
+            <tr><td><b>6</b></td><td>Finca de demostración con dos años de historia y publicación.</td><td><span class="estado">Por hacer</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="fuera">
+    <div class="wrap">
+      <h2>Lo que decidimos no hacer</h2>
+      <p class="intro">Para que el proyecto sea útil y se pueda terminar bien, dejamos por fuera lo que suena bien pero no le sirve al pequeño ganadero.</p>
+      <div class="no-lista">
+        <div class="no"><h3>Collares GPS, sensores e IoT</h3><p>Son caros para una finca pequeña y no se pueden probar en clase.</p></div>
+        <div class="no"><h3>Blockchain</h3><p>No aporta nada que una base de datos transaccional no resuelva mejor.</p></div>
+        <div class="no"><h3>IA metida porque sí</h3><p>Solo si resuelve algo concreto; no como adorno.</p></div>
+        <div class="no"><h3>Otras especies</h3><p>Solo bovinos de doble propósito, hechos bien.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="definir">
+    <div class="wrap">
+      <h2>Por definir</h2>
+      <div class="grid g2">
+        <div class="card"><h3>El nombre</h3><p>El proyecto todavía no tiene nombre comercial.</p></div>
+        <div class="card"><h3>Validación en campo</h3><p>Entrevistas con uno o dos ganaderos antes de diseñar las pantallas, y pruebas reales sin señal con dos celulares registrando la misma vaca.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Propuesta de proyecto universitario · Octubre de 2026 · Los ejemplos de esta página (fincas, animales y fechas) son ilustrativos.</div>
+</footer>
+
+<script>
+  (function () {
+    var raiz = document.documentElement;
+    try {
+      var guardado = localStorage.getItem('tema');
+      if (guardado === 'light' || guardado === 'dark') { raiz.setAttribute('data-theme', guardado); }
+    } catch (e) {}
+    document.getElementById('tema').addEventListener('click', function () {
+      var actual = raiz.getAttribute('data-theme') ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      var nuevo = actual === 'dark' ? 'light' : 'dark';
+      raiz.setAttribute('data-theme', nuevo);
+      try { localStorage.setItem('tema', nuevo); } catch (e) {}
+    });
+  })();
+</script>
+</body>
+</html>
